@@ -1,5 +1,3 @@
-# DNA-Assembler
-A browser-based DNA overlap assembler
 # 🧬 DNA Overlap Assembler
 
 A browser-based tool for assembling DNA sequences using overlap-layout-consensus (OLC) method with greedy algorithm.
@@ -13,7 +11,7 @@ A browser-based tool for assembling DNA sequences using overlap-layout-consensus
 - Mobile-friendly interface
 
 ## 🚀 Live Demo
-[Click here to use the assembler](https://pourdadp.github.io/DNA-Assembler/index html)
+[Click here to use the assembler](https://pourdadp.github.io/DNA-Assembler/)
 
 ## 🛠️ Tech Stack
 - HTML5, CSS3, Bootstrap 5, JavaScript
