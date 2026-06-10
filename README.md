@@ -13,7 +13,7 @@ A browser-based tool for assembling DNA sequences using overlap-layout-consensus
 - Mobile-friendly interface
 
 ## 🚀 Live Demo
-[Click here to use the assembler](https://pourdadp.github.io/DNA-Assembler/)
+[Click here to use the assembler](https://pourdadp.github.io/DNA-Assembler/index html)
 
 ## 🛠️ Tech Stack
 - HTML5, CSS3, Bootstrap 5, JavaScript
