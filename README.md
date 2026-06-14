@@ -34,19 +34,19 @@ Both modes support **reverse complement checking**, **fuzzy matching** for long 
 ### 📥 Supported Input Formats
 
 - **FASTA** (recommended)
-  ```fasta
+  fasta
   >read1
   ATGCGT
   >read2
   TGCG
-```
+
 
 · Plain text (one sequence per line)
-  ```
+  
   ATGCGT
   TGCG
   GCGTAA
-  ```
+  
 · Mixed (lines starting with > are treated as headers and stripped)
 
 You can also load a .fasta file directly using the Load FASTA File button.
@@ -57,9 +57,9 @@ The assembler is a single HTML file with no dependencies. To make it accessible 
 
 1. Place index.html on a machine that is always on.
 2. Start a simple HTTP server:
-   ```bash
+   bash
    python -m http.server 8000
-   ```
+   
 3. Users on the same network can access it via http://<IP>:8000.
 
 💡 For an even smoother experience, check out our LabFlow LIMS project—a full laboratory management system with Flask backend and mobile UI.
@@ -73,7 +73,7 @@ The assembler is a single HTML file with no dependencies. To make it accessible 
 ## 👨‍🔬 Author
 
 **Pourdad Panahi** – Biotechnologist & Bioinformatics Developer  
-18+ years of wet‑lab experience (cell culture, real‑time PCR, virus cultivation, ELISA).  
+18+ years Startart wet‑lab experience (cell culture, real‑time PCR, virus cultivation, ELISA).  
 Building digital tools for the life sciences.
 
 - **Portfolio:** [pourdadp.github.io](https://pourdadp.github.io)
