@@ -4,59 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🧬 DNA Overlap Assembler</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { padding-top: 20px; }
-        .footer { margin-top: 40px; font-size: 0.9em; color: #666; text-align: center; }
-        .navbar { margin-bottom: 30px; }
-        .card { margin-bottom: 20px; }
-        #graphCanvas { border: 1px solid #ccc; background: white; width: 100%; }
+        body { font-family: system-ui, sans-serif; padding: 20px; background: #f5f7fa; }
+        .container { max-width: 900px; margin: auto; }
+        textarea, input, button { font-size: 16px; padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        button { background: #2d6a4f; color: white; border: none; border-radius: 6px; cursor: pointer; width: auto; padding: 10px 20px; }
+        button:hover { background: #1b4d3a; }
+        .footer { text-align: center; margin-top: 30px; color: #666; }
+        #graphCanvas { border: 1px solid #ccc; width: 100%; }
     </style>
 </head>
-<body class="bg-light">
+<body>
     <div class="container">
-        <h1 class="text-center mb-4">🧬 DNA Overlap Assembler</h1>
+        <h1>🧬 DNA Overlap Assembler</h1>
 
-        <!-- Input Reads -->
         <div class="card">
-            <div class="card-body">
-                <h5>Input Reads (one per line)</h5>
-                <div class="mb-2">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="loadSampleReads()">🔬 Try Sample Reads</button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="clearInput()">Clear Input</button>
-                </div>
-                <textarea id="readsInput" class="form-control" rows="6" style="font-family: monospace;"></textarea>
+            <h5>Input Reads (one per line)</h5>
+            <div>
+                <button onclick="loadSampleReads()">🔬 Try Sample Reads</button>
+                <button onclick="clearInput()">Clear Input</button>
             </div>
+            <textarea id="readsInput" rows="6" style="font-family: monospace;"></textarea>
         </div>
 
-        <!-- Parameters -->
         <div class="card">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Minimum overlap length:</label>
-                        <input type="number" id="minOverlap" class="form-control" value="3" min="1" onchange="updateMismatchField()">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Max consecutive mismatches: <small class="text-muted">(only for overlap ≥ 50)</small></label>
-                        <input type="number" id="maxMismatch" class="form-control" value="3" min="0" disabled>
-                    </div>
-                </div>
-                <button class="btn btn-success" onclick="runAssembly()">⚡ Run Assembly</button>
-            </div>
+            <label>Minimum overlap length:</label>
+            <input type="number" id="minOverlap" value="3" min="1" onchange="updateMismatchField()">
+            <label>Max consecutive mismatches (for overlap ≥ 50):</label>
+            <input type="number" id="maxMismatch" value="3" min="0" disabled>
+            <button onclick="runAssembly()">⚡ Run Assembly</button>
         </div>
 
-        <!-- Results -->
         <div id="resultSection" class="card" style="display: none;">
-            <div class="card-body">
-                <h5>Assembly Result</h5>
-                <pre id="resultText" style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace;"></pre>
-                <canvas id="graphCanvas" height="300"></canvas>
-                <div class="mt-3">
-                    <button class="btn btn-outline-primary btn-sm" onclick="copyResult()">📋 Copy Result</button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="saveContig()">💾 Save Contig (.seq)</button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="clearResults()">🗑️ Clear Results</button>
-                </div>
+            <h5>Assembly Result</h5>
+            <pre id="resultText" style="background: #eee; padding: 10px; font-family: monospace;"></pre>
+            <canvas id="graphCanvas" height="300"></canvas>
+            <div>
+                <button onclick="copyResult()">📋 Copy</button>
+                <button onclick="saveContig()">💾 Save .seq</button>
+                <button onclick="clearResults()">🗑️ Clear</button>
             </div>
         </div>
 
@@ -66,28 +53,19 @@
     <script>
         // ---------- Bioinformatics Functions ----------
         function reverseComplement(seq) {
-            const comp = { 'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'a': 't', 't': 'a', 'c': 'g', 'g': 'c' };
-            let rc = '';
-            for (let i = seq.length - 1; i >= 0; i--) {
-                rc += comp[seq[i]] || seq[i];
-            }
-            return rc;
+            const comp = { A: 'T', T: 'A', C: 'G', G: 'C', a: 't', t: 'a', c: 'g', g: 'c' };
+            return [...seq].reverse().map(b => comp[b] || b).join('');
         }
 
         function fuzzyOverlapOk(aSuffix, bPrefix, maxMismatch) {
             let run = 0;
             for (let i = 0; i < aSuffix.length; i++) {
-                if (aSuffix[i] !== bPrefix[i]) {
-                    run++;
-                    if (run > maxMismatch) return false;
-                } else {
-                    run = 0;
-                }
+                if (aSuffix[i] !== bPrefix[i]) { run++; if (run > maxMismatch) return false; }
+                else run = 0;
             }
             return true;
         }
 
-        // پیدا کردن همپوشانی انتهای a با ابتدای b (مثل قبل)
         function findOverlap(a, b, minLen, fuzzyThreshold, maxMismatch) {
             let best = 0;
             const maxLen = Math.min(a.length, b.length);
@@ -103,145 +81,78 @@
             return best;
         }
 
-        // بررسی اینکه آیا read در contig کاملاً موجود است (forward یا reverse)
         function findContainment(contig, read) {
-            // forward
-            if (contig.includes(read)) {
-                return { contained: true, type: 'forward' };
-            }
-            // reverse complement
+            if (contig.includes(read)) return { contained: true, type: 'forward' };
             const rc = reverseComplement(read);
-            if (contig.includes(rc)) {
-                return { contained: true, type: 'reverse' };
-            }
+            if (contig.includes(rc)) return { contained: true, type: 'reverse' };
             return { contained: false };
-        }
-
-        // جستجوی بهترین موقعیت همپوشانی داخلی (غیر از انتها)
-        function findBestInternalOverlap(contig, read, minOverlap) {
-            let best = { overlap: 0, side: 'right', pos: 0 };
-            // تلاش برای جایی که read بخشی از contig را پوشش دهد (right side)
-            for (let i = 0; i <= contig.length - minOverlap; i++) {
-                const contigSuffix = contig.slice(i);
-                if (read.startsWith(contigSuffix)) {
-                    const overlap = contig.length - i;
-                    if (overlap > best.overlap && overlap >= minOverlap) {
-                        best = { overlap: overlap, side: 'right', pos: i };
-                    }
-                }
-            }
-            // تلاش برای left side (read ends with contig prefix)
-            for (let i = minOverlap; i <= contig.length; i++) {
-                const contigPrefix = contig.slice(0, i);
-                if (read.endsWith(contigPrefix)) {
-                    const overlap = i;
-                    if (overlap > best.overlap && overlap >= minOverlap) {
-                        best = { overlap: overlap, side: 'left', pos: i };
-                    }
-                }
-            }
-            return best;
         }
 
         function greedyAssemble(reads, minOverlap, fuzzyThreshold, maxMismatch) {
             if (!reads.length) return { contig: '', steps: [], placements: [], remaining: [], total: 0 };
-
             const sorted = [...reads].sort((a, b) => b.length - a.length);
             const total = sorted.length;
-            let bestContig = '';
-            let bestSteps = [];
-            let bestPlacements = [];
-            let bestRemaining = [...sorted];
+            let bestContig = '', bestSteps = [], bestPlacements = [], bestRemaining = [...sorted];
 
             for (let seedIdx = 0; seedIdx < sorted.length; seedIdx++) {
                 const tempReads = [...sorted];
                 const seed = tempReads.splice(seedIdx, 1)[0];
                 const placements = [{ seq: seed, start: 0, end: seed.length - 1, mismatches: new Set() }];
                 const steps = [{ seq: seed, type: 'seed', side: null, overlap: 0 }];
-
                 let extended = true;
                 while (tempReads.length && extended) {
                     const currentContig = resolveAndBuild(placements);
                     let bestAction = null;
 
-                    // 1. بررسی containment (برای هر read)
+                    // 1. Containment check
                     for (let i = 0; i < tempReads.length; i++) {
                         const read = tempReads[i];
-                        const containment = findContainment(currentContig, read);
-                        if (containment.contained) {
-                            // read کاملاً در contig است → نادیده می‌گیریم
+                        if (findContainment(currentContig, read).contained) {
                             bestAction = { type: 'contained', idx: i, read: read };
-                            break;  // یکی کافی است
+                            break;
                         }
-                        // برعکس: آیا contig در read است؟
-                        const containment2 = findContainment(read, currentContig);
-                        if (containment2.contained) {
-                            // contig کوچکتر است → جایگزین می‌کنیم
-                            bestAction = { type: 'replace', idx: i, read: read, orientation: containment2.type };
+                        if (findContainment(read, currentContig).contained) {
+                            bestAction = { type: 'replace', idx: i, read: read };
                             break;
                         }
                     }
 
                     if (bestAction) {
                         if (bestAction.type === 'contained') {
-                            const removed = tempReads.splice(bestAction.idx, 1)[0];
-                            steps.push({ seq: removed, type: 'contained', side: null, overlap: 0 });
-                            continue; // بدون تغییر contig
-                        } else if (bestAction.type === 'replace') {
+                            tempReads.splice(bestAction.idx, 1);
+                            steps.push({ seq: bestAction.read, type: 'contained' });
+                            continue;
+                        } else {
                             const chosen = tempReads.splice(bestAction.idx, 1)[0];
-                            const newSeq = bestAction.orientation === 'forward' ? chosen : reverseComplement(chosen);
-                            // جایگزین کامل contig
+                            const newSeq = findContainment(chosen, currentContig).type === 'forward' ? chosen : reverseComplement(chosen);
                             placements.length = 0;
                             placements.push({ seq: newSeq, start: 0, end: newSeq.length - 1, mismatches: new Set() });
-                            steps.push({ seq: chosen, type: 'replace', side: null, overlap: 0 });
+                            steps.push({ seq: chosen, type: 'replace' });
                             continue;
                         }
                     }
 
-                    // 2. همپوشانی‌های معمول (suffix-prefix) + داخلی
+                    // 2. Overlap search
                     let bestIdx = -1, bestOri = 'f', bestSide = 'right', bestOverlap = 0, bestSeq = null;
                     for (let i = 0; i < tempReads.length; i++) {
                         const read = tempReads[i];
-                        // forward right
                         let ov = findOverlap(currentContig, read, minOverlap, fuzzyThreshold, maxMismatch);
                         if (ov > bestOverlap) { bestOverlap=ov; bestIdx=i; bestOri='f'; bestSide='right'; bestSeq=read; }
-                        // forward left
                         ov = findOverlap(read, currentContig, minOverlap, fuzzyThreshold, maxMismatch);
                         if (ov > bestOverlap) { bestOverlap=ov; bestIdx=i; bestOri='f'; bestSide='left'; bestSeq=read; }
-                        // reverse complement
                         const rc = reverseComplement(read);
                         ov = findOverlap(currentContig, rc, minOverlap, fuzzyThreshold, maxMismatch);
                         if (ov > bestOverlap) { bestOverlap=ov; bestIdx=i; bestOri='r'; bestSide='right'; bestSeq=rc; }
                         ov = findOverlap(rc, currentContig, minOverlap, fuzzyThreshold, maxMismatch);
                         if (ov > bestOverlap) { bestOverlap=ov; bestIdx=i; bestOri='r'; bestSide='left'; bestSeq=rc; }
-
-                        // همپوشانی داخلی (non-end overlaps)
-                        const internal = findBestInternalOverlap(currentContig, read, minOverlap);
-                        if (internal.overlap > bestOverlap) {
-                            bestOverlap = internal.overlap;
-                            bestIdx = i;
-                            bestOri = 'f';
-                            bestSide = internal.side;
-                            bestSeq = read;
-                            // ذخیره موقعیت
-                        }
-                        const internalRC = findBestInternalOverlap(currentContig, reverseComplement(read), minOverlap);
-                        if (internalRC.overlap > bestOverlap) {
-                            bestOverlap = internalRC.overlap;
-                            bestIdx = i;
-                            bestOri = 'r';
-                            bestSide = internalRC.side;
-                            bestSeq = reverseComplement(read);
-                        }
                     }
 
                     if (bestIdx === -1) { extended = false; break; }
 
-                    const chosen = tempReads.splice(bestIdx, 1)[0];
+                    const chosenRead = tempReads.splice(bestIdx, 1)[0];
                     const orientedSeq = bestSeq;
-                    steps.push({ seq: chosen, type: 'add', orientation: bestOri === 'f' ? 'forward' : 'rev.comp', side: bestSide, overlap: bestOverlap });
+                    steps.push({ seq: chosenRead, type: 'add', orientation: bestOri, side: bestSide, overlap: bestOverlap });
 
-                    // ثبت mismatch (همان منطق قبلی)
                     const mismatchSet = new Set();
                     if (bestOverlap >= fuzzyThreshold) {
                         if (bestSide === 'right') {
@@ -257,59 +168,96 @@
                     }
 
                     if (bestSide === 'right') {
-                        const startPos = currentContig.length - bestOverlap;
-                        const endPos = startPos + orientedSeq.length - 1;
-                        placements.push({ seq: chosen, start: startPos, end: endPos, mismatches: mismatchSet });
+                        placements.push({ seq: chosenRead, start: currentContig.length - bestOverlap, end: currentContig.length - bestOverlap + orientedSeq.length - 1, mismatches: mismatchSet });
                     } else {
                         const shift = orientedSeq.length - bestOverlap;
-                        placements.forEach(p => { p.start += shift; p.end += shift; p.mismatches = new Set([...p.mismatches].map(x => x + shift)); });
-                        placements.push({ seq: chosen, start: 0, end: orientedSeq.length - 1, mismatches: new Set([...mismatchSet].map(x => x + shift)) });
+                        placements.forEach(p => { p.start += shift; p.end += shift; });
+                        placements.push({ seq: chosenRead, start: 0, end: orientedSeq.length - 1, mismatches: new Set() });
                     }
                 }
-
                 const contig = resolveAndBuild(placements);
                 if (contig.length > bestContig.length) {
-                    bestContig = contig;
-                    bestSteps = steps;
-                    bestPlacements = placements;
-                    bestRemaining = [...tempReads];
+                    bestContig = contig; bestSteps = steps; bestPlacements = placements; bestRemaining = [...tempReads];
                     break;
                 }
             }
             return { contig: bestContig, steps: bestSteps, placements: bestPlacements, remaining: bestRemaining, total };
         }
 
-        // (توابع resolveAndBuild, buildCoverage, drawGraph و... دقیقاً مثل قبل)
         function resolveAndBuild(placements) {
             if (!placements.length) return '';
             const maxPos = Math.max(...placements.map(p => p.end)) + 1;
             const candidates = Array.from({ length: maxPos }, () => []);
             placements.forEach(({ seq, start, end }) => {
-                for (let pos = start; pos <= end; pos++) {
-                    const idx = pos - start;
-                    const base = seq[idx];
-                    const dist = Math.min(idx, seq.length - 1 - idx);
-                    candidates[pos].push({ base, dist });
+                for (let i = start; i <= end; i++) {
+                    const idx = i - start;
+                    candidates[i].push({ base: seq[idx], dist: Math.min(idx, seq.length - 1 - idx) });
                 }
             });
-            return candidates.map(c => c.length ? c.reduce((a, b) => a.dist >= b.dist ? a : b).base : 'N').join('');
+            return candidates.map(c => c.reduce((a, b) => a.dist >= b.dist ? a : b).base).join('');
         }
 
-        function buildCoverage(placements, contigLen) {
-            const cov = new Array(contigLen).fill(0);
+        function buildCoverage(placements) {
+            const len = Math.max(...placements.map(p => p.end)) + 1;
+            const cov = new Array(len).fill(0);
             placements.forEach(({ start, end }) => { for (let i = start; i <= end; i++) cov[i]++; });
             return cov;
         }
 
-        // UI functions (مانند قبل)
-        function updateMismatchField() { /* ... */ }
-        function loadSampleReads() { /* ... */ }
-        function clearInput() { /* ... */ }
-        function clearResults() { /* ... */ }
-        function runAssembly() { /* ... */ }
-        function drawGraph() { /* ... */ }
-        function copyResult() { /* ... */ }
-        function saveContig() { /* ... */ }
+        // ---------- UI ----------
+        function updateMismatchField() {
+            const minOv = +document.getElementById('minOverlap').value;
+            const mm = document.getElementById('maxMismatch');
+            mm.disabled = minOv < 50;
+            if (minOv < 50) mm.value = '0';
+        }
+        function loadSampleReads() {
+            document.getElementById('readsInput').value = "ATGCGT\nTGCG\nGCGTAA";
+            document.getElementById('minOverlap').value = 3;
+            updateMismatchField();
+        }
+        function clearInput() { document.getElementById('readsInput').value = ''; }
+        function clearResults() {
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('resultText').textContent = '';
+            document.getElementById('graphCanvas').getContext('2d').clearRect(0,0,800,300);
+        }
+        function runAssembly() {
+            const raw = document.getElementById('readsInput').value.trim();
+            if (!raw) return alert('Enter reads.');
+            const reads = raw.split('\n').map(s => s.trim().toUpperCase()).filter(s => s);
+            const minOv = +document.getElementById('minOverlap').value || 3;
+            const maxMis = +document.getElementById('maxMismatch').value || 0;
+            const result = greedyAssemble(reads, minOv, 50, maxMis);
+            document.getElementById('resultText').textContent =
+                `=== CONTIG (${result.contig.length} bp) ===\n${result.contig}\n\n${result.steps.length} of ${result.total} reads assembled.\n`;
+            document.getElementById('resultSection').style.display = 'block';
+            drawGraph(result.contig, result.placements, buildCoverage(result.placements));
+        }
+        function drawGraph(contig, placements, cov) {
+            const canvas = document.getElementById('graphCanvas');
+            canvas.width = canvas.parentElement.clientWidth;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width - 100, scale = w / contig.length;
+            placements.forEach((p, i) => {
+                const y = 30 + i * 25, x1 = 50 + p.start * scale, x2 = 50 + (p.end + 1) * scale;
+                ctx.fillStyle = 'red'; ctx.fillRect(x1, y, x2 - x1, 20);
+                for (let pos = p.start; pos <= p.end; pos++) {
+                    if (cov[pos] > 1) { ctx.fillStyle = 'green'; ctx.fillRect(50 + pos * scale, y, scale, 20); }
+                    if (p.mismatches && p.mismatches.has(pos)) { ctx.fillStyle = 'yellow'; ctx.fillRect(50 + pos * scale, y, scale, 20); }
+                }
+            });
+        }
+        function copyResult() {
+            navigator.clipboard.writeText(document.getElementById('resultText').textContent);
+            alert('Copied!');
+        }
+        function saveContig() {
+            const contig = document.getElementById('resultText').textContent.split('\n')[1];
+            const blob = new Blob([contig], { type: 'text/plain' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'contig.fasta'; a.click();
+        }
+        updateMismatchField();
     </script>
 </body>
 </html>
