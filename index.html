@@ -15,6 +15,7 @@
         #graphCanvas { border: 1px solid #ccc; width: 100%; }
         .mode-select { display: flex; gap: 10px; align-items: center; }
         .mode-select label { font-weight: bold; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -22,12 +23,14 @@
         <h1>🧬 DNA Overlap Assembler</h1>
 
         <div class="card">
-            <h5>Input Reads (one per line)</h5>
-            <div>
+            <h5>Input Reads (FASTA format supported)</h5>
+            <div class="btn-group">
                 <button onclick="loadSampleReads()">🔬 Try Sample Reads</button>
+                <button onclick="document.getElementById('fastaFile').click()">📂 Load FASTA File</button>
                 <button onclick="clearInput()">Clear Input</button>
+                <input type="file" id="fastaFile" accept=".fasta,.fa,.fna,.txt" style="display:none;" onchange="loadFastaFile(event)">
             </div>
-            <textarea id="readsInput" rows="6" style="font-family: monospace;"></textarea>
+            <textarea id="readsInput" rows="6" style="font-family: monospace;" placeholder="Paste FASTA or one sequence per line..."></textarea>
         </div>
 
         <div class="card">
@@ -55,7 +58,7 @@
             <h5>Assembly Result</h5>
             <pre id="resultText" style="background: #eee; padding: 10px; font-family: monospace;"></pre>
             <canvas id="graphCanvas" height="300"></canvas>
-            <div>
+            <div class="btn-group">
                 <button onclick="copyResult()">📋 Copy</button>
                 <button onclick="saveContig()">💾 Save .seq</button>
                 <button onclick="clearResults()">🗑️ Clear</button>
@@ -87,6 +90,46 @@
         }
         document.getElementById('modeSelect').addEventListener('change', updateMismatchField);
         document.getElementById('minOverlap').addEventListener('input', updateMismatchField);
+
+        // ======================== FASTA PARSER ============================
+        function parseInput(rawText) {
+            const lines = rawText.trim().split('\n').map(l => l.trim()).filter(l => l);
+            if (lines.length === 0) return [];
+            // تشخیص FASTA: اگر اولین خط غیرخالی با '>' شروع شود
+            if (lines[0].startsWith('>')) {
+                return parseFasta(lines);
+            } else {
+                // حالت ساده: هر خط یک توالی (حذف >های احتمالی وسط)
+                return lines.map(l => l.startsWith('>') ? l.substring(1).trim() : l.trim());
+            }
+        }
+
+        function parseFasta(lines) {
+            const sequences = [];
+            let currentSeq = '';
+            for (const line of lines) {
+                if (line.startsWith('>')) {
+                    if (currentSeq) {
+                        sequences.push(currentSeq);
+                        currentSeq = '';
+                    }
+                } else {
+                    currentSeq += line.toUpperCase();
+                }
+            }
+            if (currentSeq) sequences.push(currentSeq);
+            return sequences;
+        }
+
+        function loadFastaFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('readsInput').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
 
         // ======================== GREEDY MODE ============================
         function fuzzyOverlapOk(aSuffix, bPrefix, maxMismatch) {
@@ -312,7 +355,7 @@
 
         // ======================== UI ============================
         function loadSampleReads() {
-            document.getElementById('readsInput').value = "ATGCGT\nTGCG\nGCGTAA";
+            document.getElementById('readsInput').value = ">read1\nATGCGT\n>read2\nTGCG\n>read3\nGCGTAA";
             document.getElementById('minOverlap').value = 3;
             updateMismatchField();
         }
@@ -325,7 +368,8 @@
         function runAssembly() {
             const raw = document.getElementById('readsInput').value.trim();
             if (!raw) return alert('Enter reads.');
-            const reads = raw.split('\n').map(s => s.trim().toUpperCase()).filter(s => s);
+            const reads = parseInput(raw);
+            if (!reads.length) return alert('No valid reads found.');
             const mode = document.getElementById('modeSelect').value;
             const minOv = +document.getElementById('minOverlap').value || 3;
             const maxMis = +document.getElementById('maxMismatch').value || 0;
@@ -348,7 +392,6 @@
             if (mode === 'greedy' && result.placements.length) {
                 drawGraph(result.contig, result.placements, buildCoverage(result.placements));
             } else {
-                // در حالت alignment، گراف ساده‌ای رسم کن
                 const canvas = document.getElementById('graphCanvas');
                 canvas.width = canvas.parentElement.clientWidth;
                 const ctx = canvas.getContext('2d');
