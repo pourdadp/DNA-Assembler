@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧬 DNA Overlap Assembler</title>
+    <title>🧬 DNA Overlap Assembler – Dual Mode</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; background: #f5f7fa; }
         .container { max-width: 900px; margin: auto; }
-        textarea, input, button { font-size: 16px; padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        textarea, input, select, button { font-size: 16px; padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
         .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         button { background: #2d6a4f; color: white; border: none; border-radius: 6px; cursor: pointer; width: auto; padding: 10px 20px; }
         button:hover { background: #1b4d3a; }
         .footer { text-align: center; margin-top: 30px; color: #666; }
         #graphCanvas { border: 1px solid #ccc; width: 100%; }
+        .mode-select { display: flex; gap: 10px; align-items: center; }
+        .mode-select label { font-weight: bold; }
     </style>
 </head>
 <body>
@@ -29,10 +31,23 @@
         </div>
 
         <div class="card">
-            <label>Minimum overlap length:</label>
-            <input type="number" id="minOverlap" value="3" min="1" onchange="updateMismatchField()">
-            <label>Max consecutive mismatches (for overlap ≥ 50):</label>
-            <input type="number" id="maxMismatch" value="3" min="0" disabled>
+            <div class="mode-select">
+                <label>Assembly Mode:</label>
+                <select id="modeSelect" style="width: auto;">
+                    <option value="greedy">Greedy Overlap (Fast)</option>
+                    <option value="alignment">Semi-Global Alignment (Precise)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <label>Minimum overlap length:</label>
+                    <input type="number" id="minOverlap" value="3" min="1">
+                </div>
+                <div style="flex: 1;" id="mismatchField">
+                    <label>Max consecutive mismatches (for overlap ≥ 50):</label>
+                    <input type="number" id="maxMismatch" value="3" min="0" disabled>
+                </div>
+            </div>
             <button onclick="runAssembly()">⚡ Run Assembly</button>
         </div>
 
@@ -51,12 +66,29 @@
     </div>
 
     <script>
-        // ---------- Bioinformatics Functions ----------
+        // ======================== UTILS ============================
         function reverseComplement(seq) {
             const comp = { A: 'T', T: 'A', C: 'G', G: 'C', a: 't', t: 'a', c: 'g', g: 'c' };
             return [...seq].reverse().map(b => comp[b] || b).join('');
         }
 
+        function updateMismatchField() {
+            const mode = document.getElementById('modeSelect').value;
+            const minOv = +document.getElementById('minOverlap').value;
+            const mm = document.getElementById('maxMismatch');
+            const mmField = document.getElementById('mismatchField');
+            if (mode === 'greedy') {
+                mmField.style.display = 'block';
+                mm.disabled = minOv < 50;
+                if (minOv < 50) mm.value = '0';
+            } else {
+                mmField.style.display = 'none';
+            }
+        }
+        document.getElementById('modeSelect').addEventListener('change', updateMismatchField);
+        document.getElementById('minOverlap').addEventListener('input', updateMismatchField);
+
+        // ======================== GREEDY MODE ============================
         function fuzzyOverlapOk(aSuffix, bPrefix, maxMismatch) {
             let run = 0;
             for (let i = 0; i < aSuffix.length; i++) {
@@ -88,6 +120,26 @@
             return { contained: false };
         }
 
+        function resolveAndBuild(placements) {
+            if (!placements.length) return '';
+            const maxPos = Math.max(...placements.map(p => p.end)) + 1;
+            const candidates = Array.from({ length: maxPos }, () => []);
+            placements.forEach(({ seq, start, end }) => {
+                for (let i = start; i <= end; i++) {
+                    const idx = i - start;
+                    candidates[i].push({ base: seq[idx], dist: Math.min(idx, seq.length - 1 - idx) });
+                }
+            });
+            return candidates.map(c => c.reduce((a, b) => a.dist >= b.dist ? a : b).base).join('');
+        }
+
+        function buildCoverage(placements) {
+            const len = Math.max(...placements.map(p => p.end)) + 1;
+            const cov = new Array(len).fill(0);
+            placements.forEach(({ start, end }) => { for (let i = start; i <= end; i++) cov[i]++; });
+            return cov;
+        }
+
         function greedyAssemble(reads, minOverlap, fuzzyThreshold, maxMismatch) {
             if (!reads.length) return { contig: '', steps: [], placements: [], remaining: [], total: 0 };
             const sorted = [...reads].sort((a, b) => b.length - a.length);
@@ -104,7 +156,7 @@
                     const currentContig = resolveAndBuild(placements);
                     let bestAction = null;
 
-                    // 1. Containment check
+                    // Containment
                     for (let i = 0; i < tempReads.length; i++) {
                         const read = tempReads[i];
                         if (findContainment(currentContig, read).contained) {
@@ -132,7 +184,7 @@
                         }
                     }
 
-                    // 2. Overlap search
+                    // Overlap
                     let bestIdx = -1, bestOri = 'f', bestSide = 'right', bestOverlap = 0, bestSeq = null;
                     for (let i = 0; i < tempReads.length; i++) {
                         const read = tempReads[i];
@@ -184,33 +236,81 @@
             return { contig: bestContig, steps: bestSteps, placements: bestPlacements, remaining: bestRemaining, total };
         }
 
-        function resolveAndBuild(placements) {
-            if (!placements.length) return '';
-            const maxPos = Math.max(...placements.map(p => p.end)) + 1;
-            const candidates = Array.from({ length: maxPos }, () => []);
-            placements.forEach(({ seq, start, end }) => {
-                for (let i = start; i <= end; i++) {
-                    const idx = i - start;
-                    candidates[i].push({ base: seq[idx], dist: Math.min(idx, seq.length - 1 - idx) });
+        // ======================== ALIGNMENT MODE ============================
+        const MATCH = 1, MISMATCH = -1, GAP = -2;
+
+        function semiGlobalAlign(seq1, seq2) {
+            const rows = seq1.length + 1, cols = seq2.length + 1;
+            const score = Array.from({ length: rows }, () => new Array(cols).fill(0));
+            let maxScore = 0, maxI = 0, maxJ = 0;
+
+            for (let i = 1; i < rows; i++) {
+                for (let j = 1; j < cols; j++) {
+                    const match = score[i-1][j-1] + (seq1[i-1] === seq2[j-1] ? MATCH : MISMATCH);
+                    const del = score[i-1][j] + GAP;
+                    const ins = score[i][j-1] + GAP;
+                    let best = Math.max(match, del, ins, 0);
+                    score[i][j] = best;
+                    if (best > maxScore) { maxScore = best; maxI = i; maxJ = j; }
                 }
-            });
-            return candidates.map(c => c.reduce((a, b) => a.dist >= b.dist ? a : b).base).join('');
+            }
+
+            // Traceback
+            let i = maxI, j = maxJ;
+            let matches = 0, contigStart = i, readStart = j;
+            while (i > 0 && j > 0 && score[i][j] > 0) {
+                if (seq1[i-1] === seq2[j-1]) matches++;
+                if (score[i][j] === score[i-1][j-1] + (seq1[i-1] === seq2[j-1] ? MATCH : MISMATCH)) { i--; j--; }
+                else if (score[i][j] === score[i-1][j] + GAP) i--;
+                else if (score[i][j] === score[i][j-1] + GAP) j--;
+                else break;
+                contigStart = i; readStart = j;
+            }
+
+            return { score: maxScore, matches, contigStart, contigEnd: maxI, readStart, readEnd: maxJ };
         }
 
-        function buildCoverage(placements) {
-            const len = Math.max(...placements.map(p => p.end)) + 1;
-            const cov = new Array(len).fill(0);
-            placements.forEach(({ start, end }) => { for (let i = start; i <= end; i++) cov[i]++; });
-            return cov;
+        function mergeReadToContig(contig, read, minOverlap) {
+            let aln = semiGlobalAlign(contig, read);
+            let orientation = 'forward';
+            const rc = reverseComplement(read);
+            let alnRC = semiGlobalAlign(contig, rc);
+            if (alnRC.matches > aln.matches) { aln = alnRC; orientation = 'reverse'; }
+
+            if (aln.matches >= minOverlap) {
+                const readSeq = orientation === 'forward' ? read : rc;
+                const leftOverhang = readSeq.slice(0, aln.readStart);
+                const rightOverhang = readSeq.slice(aln.readEnd);
+                const leftContig = contig.slice(0, aln.contigStart);
+                const rightContig = contig.slice(aln.contigEnd);
+                return leftOverhang + leftContig + contig.slice(aln.contigStart, aln.contigEnd) + rightContig + rightOverhang;
+            }
+            return null;
         }
 
-        // ---------- UI ----------
-        function updateMismatchField() {
-            const minOv = +document.getElementById('minOverlap').value;
-            const mm = document.getElementById('maxMismatch');
-            mm.disabled = minOv < 50;
-            if (minOv < 50) mm.value = '0';
+        function assembleWithAlignment(reads, minOverlap) {
+            if (reads.length === 0) return '';
+            const sorted = [...reads].sort((a, b) => b.length - a.length);
+            let contig = sorted[0];
+            const used = new Set([0]);
+            let changed = true;
+            while (changed) {
+                changed = false;
+                for (let i = 0; i < sorted.length; i++) {
+                    if (used.has(i)) continue;
+                    const newContig = mergeReadToContig(contig, sorted[i], minOverlap);
+                    if (newContig !== null) {
+                        contig = newContig;
+                        used.add(i);
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+            return contig;
         }
+
+        // ======================== UI ============================
         function loadSampleReads() {
             document.getElementById('readsInput').value = "ATGCGT\nTGCG\nGCGTAA";
             document.getElementById('minOverlap').value = 3;
@@ -220,20 +320,47 @@
         function clearResults() {
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('resultText').textContent = '';
-            document.getElementById('graphCanvas').getContext('2d').clearRect(0,0,800,300);
+            document.getElementById('graphCanvas').getContext('2d').clearRect(0,0,900,300);
         }
         function runAssembly() {
             const raw = document.getElementById('readsInput').value.trim();
             if (!raw) return alert('Enter reads.');
             const reads = raw.split('\n').map(s => s.trim().toUpperCase()).filter(s => s);
+            const mode = document.getElementById('modeSelect').value;
             const minOv = +document.getElementById('minOverlap').value || 3;
             const maxMis = +document.getElementById('maxMismatch').value || 0;
-            const result = greedyAssemble(reads, minOv, 50, maxMis);
+
+            let result;
+            if (mode === 'greedy') {
+                result = greedyAssemble(reads, minOv, 50, maxMis);
+            } else {
+                const contig = assembleWithAlignment(reads, minOv);
+                result = { contig, steps: [], placements: [], remaining: [], total: reads.length };
+            }
+
             document.getElementById('resultText').textContent =
-                `=== CONTIG (${result.contig.length} bp) ===\n${result.contig}\n\n${result.steps.length} of ${result.total} reads assembled.\n`;
+                `=== CONTIG (${result.contig.length} bp) ===\n${result.contig}\n\n` +
+                (mode === 'greedy' ? `${result.steps.length} of ${result.total} reads assembled.\n` : '') +
+                (result.remaining && result.remaining.length ? `Unused: ${result.remaining.join(', ')}\n` : '');
+
             document.getElementById('resultSection').style.display = 'block';
-            drawGraph(result.contig, result.placements, buildCoverage(result.placements));
+
+            if (mode === 'greedy' && result.placements.length) {
+                drawGraph(result.contig, result.placements, buildCoverage(result.placements));
+            } else {
+                // در حالت alignment، گراف ساده‌ای رسم کن
+                const canvas = document.getElementById('graphCanvas');
+                canvas.width = canvas.parentElement.clientWidth;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                ctx.fillStyle = '#2d6a4f';
+                ctx.fillRect(50, 30, (canvas.width-100) * 0.8, 20);
+                ctx.fillStyle = 'black';
+                ctx.font = '12px sans-serif';
+                ctx.fillText('Contig', 50, 80);
+            }
         }
+
         function drawGraph(contig, placements, cov) {
             const canvas = document.getElementById('graphCanvas');
             canvas.width = canvas.parentElement.clientWidth;
@@ -248,15 +375,18 @@
                 }
             });
         }
+
         function copyResult() {
             navigator.clipboard.writeText(document.getElementById('resultText').textContent);
             alert('Copied!');
         }
         function saveContig() {
-            const contig = document.getElementById('resultText').textContent.split('\n')[1];
+            const lines = document.getElementById('resultText').textContent.split('\n');
+            const contig = lines[1] || '';
             const blob = new Blob([contig], { type: 'text/plain' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'contig.fasta'; a.click();
         }
+
         updateMismatchField();
     </script>
 </body>
