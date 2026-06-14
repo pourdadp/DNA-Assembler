@@ -1,50 +1,45 @@
-# 🧬 DNA Overlap Assembler
+# 🧬 DNA Overlap Assembler – Dual Mode
 
-A **browser-based DNA sequence assembler** using a **Greedy Overlap-Layout-Consensus (OLC)** algorithm with **Fuzzy Matching** and **Seed Retry**. Built entirely with HTML, CSS, and JavaScript—no installation required.
+A browser‑based DNA sequence assembler with **two distinct algorithms**:
+- **Greedy Overlap‑Layout‑Consensus (OLC)** — fast, educational, and ideal for small datasets.
+- **Semi‑Global Alignment (Dynamic Programming)** — precise, robust, and closer to real‑world assemblers.
 
-## 🔬 Key Features
+Both modes support **reverse complement checking**, **fuzzy matching** for long overlaps, and **graphical visualization** of read alignments.
 
-| Feature | Description |
-|:---|:---|
-| **Greedy OLC Algorithm** | Assembles reads by repeatedly merging the pair with the longest overlap |
-| **Seed Retry** | If the initial seed fails, tries alternative starting reads to escape local optima |
-| **Fuzzy Matching** | Allows up to 3 consecutive mismatches for overlaps ≥ 50 bp (mimics real sequencing errors) |
-| **Exact Matching** | For overlaps < 50 bp, enforces 100% identity to prevent false joins |
-| **Reverse Complement** | Automatically checks the reverse complement of each read for overlaps |
-| **Graphical Visualization** | Color-coded overlap map: 🟥 non-overlap, 🟩 overlap, 🟨 mismatches |
-| **Mobile-Friendly UI** | Responsive Bootstrap interface with right-click context menu |
-| **Export** | Save assembled contig as `.seq` file |
+## 🔬 Features
 
-## 🎯 How It Compares to Other Assemblers
-
-| | **DNA Assembler** | **CAP3** | **SPAdes** |
-|:---|:---|:---|:---|
-| **Algorithm** | Greedy OLC + Seed Retry | OLC (phrap) | De Bruijn Graph |
-| **Error Handling** | Fuzzy Matching (≥50 bp) | Quality-based trimming | Bayesian error correction |
-| **Scale** | Small (tens of reads) | Medium (hundreds) | Large (millions) |
-| **Interface** | 🌐 Web (no install) | ⌨️ Command-line | ⌨️ Command-line |
-| **Visualization** | ✅ Built-in color map | ❌ None | ❌ None |
-| **Best For** | Education, small lab assemblies, portfolio | EST assembly | Whole-genome assembly |
-
-> ⚠️ **DNA Assembler is not a replacement for SPAdes or Canu.** It is a **teaching tool** and a **portfolio piece** that demonstrates algorithmic thinking, UI design, and full-stack development skills.
+| Feature | Greedy OLC | Semi‑Global Alignment |
+|:---|:---|:---|
+| Algorithm | Overlap + Containment + Seed Retry | Smith–Waterman style DP |
+| Speed | Very fast | Moderate |
+| Handles contained reads | ✅ (explicit check) | ✅ (automatic via alignment) |
+| Handles internal overlaps | ⚠️ Limited | ✅ Fully |
+| Fuzzy mismatches | ✅ (configurable threshold) | ❌ (exact matching) |
+| Graphical output | ✅ Colored overlap map | ✅ Simple contig view |
+| Export | `.seq` file | `.seq` file |
 
 ## 🚀 Live Demo
 
 👉 **[Try it here](https://pourdadp.github.io/DNA-Assembler/)**
 
-## 🛠️ Tech Stack
 
-- **HTML5**
-- **CSS3 / Bootstrap 5**
-- **JavaScript (Vanilla)**
-- **No server, no dependencies** – runs entirely in the browser
+## 🛠️ Tech Stack
+- HTML5 / CSS3 / JavaScript (Vanilla)
+- No server, no dependencies
 
 ## 📸 Screenshots
+*Add screenshots of both modes here*
 
-| Assembly View | Graphical Overlap Map |
-|:---:|:---:|
-| *Add screenshot here* | *Add screenshot here* |
+## 👨‍🔬 Author
 
-## 🧪 Sample Data
+**Pourdad Panahi** – Biotechnologist & Bioinformatics Developer  
+18+ years of wet‑lab experience (cell culture, real‑time PCR, virus cultivation, ELISA).  
+Building digital tools for the life sciences.
 
-Click the **🔬 Try Sample Reads** button to test wAssemblymbly
+- **Portfolio:** [pourdadp.github.io](https://pourdadp.github.io)
+- **GitHub:** [github.com/pourdadp](https://github.com/pourdadp)
+- **LinkedIn:** [linkedin.com/in/pourdad-panahi](https://linkedin.com/in/pourdad-panahi)
+
+---
+
+📄 **Powered By Pourdad Panahi**# 🧪 
