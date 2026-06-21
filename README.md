@@ -82,7 +82,9 @@ Building digital tools for the life sciences.
 - **LinkedIn:** [linkedin.com/in/pourdad-panahi](https://linkedin.com/in/pourdad-panahi)
 
 ---
+## 📄 License
 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 📄 **Powered By Pourdad Panahi**# 🧪 
 ## 📄 License
 
